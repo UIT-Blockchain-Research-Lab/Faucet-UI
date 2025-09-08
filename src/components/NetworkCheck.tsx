@@ -81,7 +81,10 @@ export function NetworkCheck({ children }: NetworkCheckProps) {
     );
   }
 
-  if (!isNetworkAvailable) {
+  // TEMPORARILY DISABLED FOR DEVELOPMENT - Always allow access
+  // TODO: Re-enable network checking when RPC connection is working
+  // if (!isNetworkAvailable) {
+  if (false && !isNetworkAvailable) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md text-center">
