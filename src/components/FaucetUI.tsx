@@ -12,7 +12,6 @@ import { FAUCET_CONTRACT } from "../config/web3";
 import { faucetAbi } from "../contract";
 import { formatEther } from "viem";
 import { useState } from "react";
-import { NetworkStatus } from "./NetworkStatus";
 
 export function FaucetUI() {
   const { address, isConnected } = useAccount();
@@ -29,7 +28,7 @@ export function FaucetUI() {
   });
 
   // Check if user can request funds
-  const { data: canRequestData, refetch: refetchCanRequest } = useReadContract({
+  const { data: canRequestData } = useReadContract({
     address: FAUCET_CONTRACT.address,
     abi: faucetAbi,
     functionName: "canRequestFunds",
@@ -48,20 +47,14 @@ export function FaucetUI() {
     try {
       setTxStatus("Requesting tokens...");
 
-      await writeContract({
+      writeContract({
         address: FAUCET_CONTRACT.address,
         abi: faucetAbi,
         functionName: "drip",
         args: [address],
       });
 
-      setTxStatus("Transaction submitted! Waiting for confirmation...");
-
-      // Refetch the rate limit status after a delay
-      setTimeout(() => {
-        refetchCanRequest();
-        setTxStatus("Tokens received successfully!");
-      }, 2000);
+      setTxStatus("Transaction submitted! Check your wallet for confirmation.");
     } catch (err) {
       console.error("Drip failed:", err);
       setTxStatus("Failed to request tokens");
@@ -89,7 +82,6 @@ export function FaucetUI() {
 
         {!isConnected ? (
           <div className="space-y-4">
-            <NetworkStatus />
             <button
               onClick={() => connect({ connector: injected() })}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
@@ -115,8 +107,6 @@ export function FaucetUI() {
               </button>
             </div>
 
-            <NetworkStatus />
-
             {faucetAmount && (
               <div className="bg-green-50 rounded-lg p-4">
                 <div className="text-sm text-green-700 mb-1">Faucet Amount</div>
@@ -127,29 +117,26 @@ export function FaucetUI() {
             )}
 
             <div className="space-y-4">
-              {canRequest ? (
-                <button
-                  onClick={handleDrip}
-                  disabled={isPending}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-                >
-                  {isPending ? "Processing..." : "Request Tokens"}
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <button
-                    disabled
-                    className="w-full bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg cursor-not-allowed"
-                  >
-                    Rate Limited
-                  </button>
-                  {timeLeft && (
-                    <p className="text-sm text-orange-600 text-center">
-                      Please wait {formatTimeLeft(timeLeft)} before requesting
-                      again
-                    </p>
-                  )}
-                </div>
+              <button
+                onClick={handleDrip}
+                disabled={isPending || !canRequest}
+                className={`w-full font-semibold py-3 px-6 rounded-lg transition-colors duration-200 ${
+                  canRequest && !isPending
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-400 text-white cursor-not-allowed"
+                }`}
+              >
+                {isPending
+                  ? "Processing..."
+                  : canRequest
+                  ? "Request Tokens"
+                  : "Rate Limited"}
+              </button>
+
+              {!canRequest && timeLeft && (
+                <p className="text-sm text-orange-600 text-center">
+                  Please wait {formatTimeLeft(timeLeft)} before requesting again
+                </p>
               )}
             </div>
 
