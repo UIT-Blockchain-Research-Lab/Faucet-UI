@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createPublicClient, http } from "viem";
 import { uitChain } from "../config/web3";
 
 interface NetworkCheckProps {
@@ -17,30 +16,41 @@ export function NetworkCheck({ children }: NetworkCheckProps) {
   useEffect(() => {
     const checkNetworkConnectivity = async () => {
       try {
-        const publicClient = createPublicClient({
-          chain: uitChain,
-          transport: http(),
-        });
-
         // Create a timeout promise to limit the check duration
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error("Network check timeout")), 10000)
         );
 
-        // Try to get the latest block number to test connectivity
-        const blockNumberPromise = publicClient.getBlockNumber();
+        // Make direct JSON-RPC call to get block number
+        const rpcCallPromise = fetch(uitChain.rpcUrls.default.http[0], {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            method: "eth_blockNumber",
+            params: [],
+            id: 1,
+          }),
+        });
 
-        const blockNumber = await Promise.race([
-          blockNumberPromise,
-          timeoutPromise,
-        ]);
+        const response = await Promise.race([rpcCallPromise, timeoutPromise]);
 
-        if (blockNumber !== undefined && typeof blockNumber === "bigint") {
-          console.log(
-            "Successfully connected to UIT Chain, current block:",
-            blockNumber.toString()
-          );
-          setIsNetworkAvailable(true);
+        if (response instanceof Response && response.ok) {
+          const data = await response.json();
+
+          if (data.result && typeof data.result === "string") {
+            const blockNumber = parseInt(data.result, 16);
+            console.log(
+              "Successfully connected to UIT Chain, current block:",
+              blockNumber
+            );
+            setIsNetworkAvailable(true);
+          } else {
+            console.error("Invalid response format:", data);
+            setIsNetworkAvailable(false);
+          }
         } else {
           setIsNetworkAvailable(false);
         }

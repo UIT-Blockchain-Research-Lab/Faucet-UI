@@ -1,6 +1,5 @@
 "use client";
 
-import { createPublicClient, http } from "viem";
 import { uitChain } from "../config/web3";
 import { useState } from "react";
 
@@ -21,15 +20,39 @@ export function NetworkStatus({ className = "" }: NetworkStatusProps) {
     setConnectionStatus("idle");
 
     try {
-      const publicClient = createPublicClient({
-        chain: uitChain,
-        transport: http(),
+      // Make direct JSON-RPC call to get block number
+      const response = await fetch(uitChain.rpcUrls.default.http[0], {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "eth_blockNumber",
+          params: [],
+          id: 1,
+        }),
       });
 
-      const blockNumber = await publicClient.getBlockNumber();
-      setLastBlockNumber(blockNumber);
-      setLastCheckTime(new Date());
-      setConnectionStatus("success");
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.result && typeof data.result === "string") {
+          const blockNumber = BigInt(parseInt(data.result, 16));
+          setLastBlockNumber(blockNumber);
+          setLastCheckTime(new Date());
+          setConnectionStatus("success");
+        } else {
+          console.error("Invalid response format:", data);
+          setConnectionStatus("error");
+          setLastBlockNumber(null);
+          setLastCheckTime(new Date());
+        }
+      } else {
+        setConnectionStatus("error");
+        setLastBlockNumber(null);
+        setLastCheckTime(new Date());
+      }
     } catch (error) {
       console.error("Connection check failed:", error);
       setConnectionStatus("error");
